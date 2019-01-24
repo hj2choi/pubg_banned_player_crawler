@@ -7,7 +7,6 @@ import os
 API_KEY = ""
 with open("config.json") as config_file:
     API_KEY = json.load(config_file)["API_KEY"]
-
 PLAYER_API_REQUEST_ENDPOINT = "https://api.pubg.com/shards/kakao/players?filter[playerNames]="
 MATCH_API_REQUEST_ENDPOINT = "https://api.pubg.com/shards/kakao/matches/"
 PLAYERS_ID_PATH = "./player_ban_list"
@@ -16,13 +15,19 @@ PLAYERS_DATA_PATH = "./banned_players_data/"
 header = {
   "Authorization": API_KEY,
   "Accept": "application/vnd.api+json",
-  "Accept-Encoding": "gzip"
+  "Accept-Encoding": "gzip",
+  "Connection": "close"
 }
 metadata = {}
 
 # retrieve all relavent match statistics for specified player
 def requestMatchStats(match_id, player_id, headers, match_url = "https://api.pubg.com/shards/kakao/matches/"):
-    match_response = requests.get(match_url+match_id, headers=headers)
+    match_response = None
+    try:
+        match_response = requests.get(match_url+match_id, headers=headers)
+    except:
+        print("ERROR: FAILED TO RETRIEVE MATCH DATA. SKIPPING...")
+        return {"responseStatus":401}
     #print("fetched match data",match_id,"with response status:",match_response.status_code)
 
     # scrap in-game match stats from each match played
@@ -87,7 +92,7 @@ def downloadAndWriteMatchTelemetryData(filename, telemetry_URL, headers, overwri
         print("ERROR: FAILED TO RETRIEVE TELEMETRY DATA. SKIPPING...")
         return
 
-    #print("response status:",response.status_code)
+    print("response status:",response.status_code)
     if response.ok:
         with open(filename, mode = 'w') as outfile:
             if (len(response.content) > 100):
@@ -122,6 +127,8 @@ def retrieveAndWriteAllMatchData(filename, player_id, match_list, headers, overw
 
         for i, m in enumerate(match_list):
             match_data = requestMatchStats(m["id"], player_id, headers=headers, match_url=MATCH_API_REQUEST_ENDPOINT)
+            if (match_data["responseStatus"] != 200):
+                continue
 
             if downloadTelemetry and i<telemetryLimit:
                 downloadAndWriteMatchTelemetryData(PLAYERS_DATA_PATH+"telemetry/"+player_id+"_"+match_data["matchId"]+".json",
@@ -164,20 +171,20 @@ def retrieveAndWritePlayerSeasonalStatsFromAPI(filename, player_id, metadata, he
     two_seasons_data = {}
 
     response = requests.get(req_url, headers=headers)
-    #print("response status:",response.status_code)
+    print("response status:",response.status_code)
     while response.status_code == 429:
         time.sleep(6)
         response = requests.get(req_url, headers=headers)
-        #print("response status:",response.status_code)
+        print("response status:",response.status_code)
     if response.ok:
         current_season = json.loads(response.content)
 
     response = requests.get(req_url2, headers=headers)
-    #print("response status:",response.status_code)
+    print("response status:",response.status_code)
     while response.status_code == 429:
         time.sleep(6)
         response = requests.get(req_url2, headers=headers)
-        #print("response status:",response.status_code)
+        print("response status:",response.status_code)
     if response.ok:
         previous_season = json.loads(response.content)
 
@@ -190,7 +197,7 @@ def retrieveAndWritePlayerSeasonalStatsFromAPI(filename, player_id, metadata, he
 def requestAndProcessPlayerDataFromAPI(url, headers):
     global metadata
     response = requests.get(url, headers=headers)
-    #print("response status:",response.status_code)
+    print("response status:",response.status_code)
     if response.ok:
         players_dict = json.loads(response.content) # up to 6 players
         # get list of matches of each player
@@ -203,7 +210,7 @@ def requestAndProcessPlayerDataFromAPI(url, headers):
                                         player_data["relationships"]["matches"]["data"],
                                         headers = headers,
                                         overwrite = False,
-                                        downloadTelemetry = True,
+                                        downloadTelemetry = False,
                                         telemetryLimit = 3)
     return response.status_code
 
@@ -233,6 +240,9 @@ def run_crawler():
     progress = 0
     for filename in os.listdir(PLAYERS_ID_PATH):
         banned_players = open(PLAYERS_ID_PATH+"/"+filename).read().split()
+        progress += len(banned_players)
+        if filename[0] == '.':
+            continue
         print("crawling data for ", len(banned_players),"accounts from file", filename)
         for i in range(0,len(banned_players),6):
             print("\nprogress:", progress+i,"/", players_count, "current:", filename)
@@ -243,7 +253,6 @@ def run_crawler():
             print(urlstring)
             while(requestAndProcessPlayerDataFromAPI(urlstring, headers=header)==429):
                 time.sleep(6)
-        progress += len(banned_players)
 
 metadata = retrieveUpdatedMetadata()
 run_crawler()
