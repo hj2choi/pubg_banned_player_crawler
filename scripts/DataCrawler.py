@@ -11,13 +11,6 @@ class DataCrawler:
     def __init__(self, config):
         self.config = config
 
-    # reservoir sampling
-    def extractRandomPlayerListFromMatch(match_dict, samples_count = 3):
-        player_id_list = [data["attributes"]["stats"]["playerId"] for data in match_dict["included"] if data["type"] == "participant"]
-        random.shuffle(player_id_list)
-        player_id_list = player_id_list[:min(len(player_id_list), samples_count)]
-        #print(player_id_list)
-
     def downloadMatchTelemetryData(self, player_id, match_id, telemetry_URL):
         req_headers = self.config.request_headers
         overwrite = self.config.overwrite_files
@@ -45,6 +38,7 @@ class DataCrawler:
     def requestMatchStats(self, match_id, player_id):
         req_headers = self.config.request_headers
         samples_count = self.config.sample_player_ids_from_match
+        samples_filepath = self.config.random_players_list_path
 
         match_response = None
         try:
@@ -58,7 +52,7 @@ class DataCrawler:
         if match_response.ok:
             match_dict = json.loads(match_response.content)
             if samples_count:
-                extractRandomPlayerListFromMatch(match_dict, samples_count)
+                fileUtils.extractRandomPlayerListFromMatch(samples_filepath, match_dict, samples_count)
 
             in_match_playerId = ""
             match_attributes = match_dict["data"]["attributes"]

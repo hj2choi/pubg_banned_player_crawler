@@ -6,8 +6,8 @@ API_SEASONS_PATH = "https://api.pubg.com/shards/kakao/seasons/"
 
 class ConfigManager:
     def __init__(self, config_filepath, metadata_filepath,
-                players_id_path, players_data_path, overwrite_files,
-                sample_player_ids_from_match, downloadTelemetry):
+                players_id_path, players_data_path, random_players_list_path,
+                overwrite_files, sample_player_ids_from_match, downloadTelemetry):
         self.api_key = ""
         with open(config_filepath) as config_file:
             self.api_key = json.load(config_file)["API_KEY"]
@@ -23,6 +23,7 @@ class ConfigManager:
 
         self.players_id_path = players_id_path
         self.players_data_path = players_data_path
+        self.random_players_list_path = random_players_list_path
         self.overwrite_files = overwrite_files
         self.sample_player_ids_from_match = sample_player_ids_from_match
         self.downloadTelemetry = downloadTelemetry
