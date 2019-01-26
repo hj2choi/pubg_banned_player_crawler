@@ -3,6 +3,7 @@ import requests
 import json
 import time
 import scripts.fileUtils as fileUtils
+import scripts.dataParserUtils as dataParserUtils
 
 API_PLAYERS_ENDPOINT = "https://api.pubg.com/shards/kakao/players?filter[playerNames]="
 MATCH_API_REQUEST_ENDPOINT = "https://api.pubg.com/shards/kakao/matches/"
@@ -29,9 +30,12 @@ class DataCrawler:
 
         print("response status:",response.status_code)
         if response.ok:
+            telemetryEvents = json.loads(response.content)
+            telemetryEvents = dataParserUtils.filterTelemetryEvents(telemetryEvents)
+
             with open(filepath, mode = 'w') as outfile:
-                if (len(response.content) > 100):
-                    json.dump(json.loads(response.content), outfile)
+                if (len(telemetryEvents) > 100):
+                    json.dump(telemetryEvents, outfile)
                     print("fetched telemetry match data")
 
     # retrieve all relavent match statistics for specified player
